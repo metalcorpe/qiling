@@ -1793,6 +1793,7 @@ class Token:
         # TODO find a GOOD reference paper for the values
         self.struct[Token.TokenInformationClass.TokenUIAccess.value] = self.ql.pack(0x1)
         self.struct[Token.TokenInformationClass.TokenGroups.value] = self.ql.pack(0x1)
+        self.struct[Token.TokenInformationClass.TokenElevation.value] = self.ql.pack(0x1)
         # still not sure why 0x1234 executes gandcrab as admin, but 544 no. No idea (see sid refs for the values)
         sub = 0x1234 if ql.os.profile["SYSTEM"]["permission"] == "root" else 545
         sub = sub.to_bytes(4, "little")

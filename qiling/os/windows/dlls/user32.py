@@ -875,3 +875,69 @@ def hook_GetWindowThreadProcessId(ql: Qiling, address: int, params):
 @winsdkapi(cc=STDCALL, params={})
 def hook_GetShellWindow(ql: Qiling, address: int, params):
     return ql.os.profile.getint("KERNEL", "shell_pid")
+
+# BOOL BlockInput(
+#   BOOL fBlockIt
+# );
+@winsdkapi(cc=STDCALL)
+def hook_BlockInput(ql, address, params):
+    ret = 1
+    return ret
+
+# HWND FindWindowW(
+#   LPCWSTR lpClassName,
+#   LPCWSTR lpWindowName
+# );
+@winsdkapi(cc=STDCALL)
+def hook_FindWindowW(ql, address, params):
+    return 0
+
+# BOOL IsWindowVisible(
+#   HWND hWnd
+# );
+@winsdkapi(cc=STDCALL)
+def hook_IsWindowVisible(ql, address, params):
+    return 0
+
+# HICON CopyIcon(
+#   HICON hIcon
+# );
+@winsdkapi(cc=STDCALL)
+def hook_CopyIcon(ql, address, params):
+    return None
+
+# BOOL DeleteColorSpace(
+#   HCOLORSPACE hcs
+# );
+@winsdkapi(cc=STDCALL)
+def hook_DeleteColorSpace(ql, address, params):
+    return True
+
+# LPWSTR CharLowerW(
+#   LPWSTR lpsz
+# );
+@winsdkapi(cc=STDCALL)
+def hook_CharLowerW(ql, address, params):
+    return 5460116
+
+# BOOL IsCharLowerA(
+#   CHAR ch
+# );
+@winsdkapi(cc=STDCALL)
+def hook_IsCharLowerA(ql, address, params):
+    return 0
+
+# BOOL ShowCaret(
+#   HWND hWnd
+# );
+@winsdkapi(cc=STDCALL)
+def hook_ShowCaret(ql, address, params):
+    return 1
+
+# int GetSystemMetrics(
+#   int nIndex
+# );
+@winsdkapi(cc=STDCALL)
+def hook_GetSystemMetrics(ql, address, params):
+    return 0
+

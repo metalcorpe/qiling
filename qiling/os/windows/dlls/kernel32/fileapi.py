@@ -160,9 +160,9 @@ def hook_ReadFile(ql: Qiling, address: int, params):
             # TODO maybe insert a good random generation input
             s = (b"A" * (nNumberOfBytesToRead - 1)) + b"\x00"
         else:
-            ql.log.debug("Insert input")
-            s = ql.os.stdin.read(nNumberOfBytesToRead)
-
+            # ql.log.debug("Insert input")
+            # s = ql.os.stdin.read(nNumberOfBytesToRead)
+            s = (b"A" * (nNumberOfBytesToRead - 1)) + b"\x00"
         slen = len(s)
         read_len = slen
 

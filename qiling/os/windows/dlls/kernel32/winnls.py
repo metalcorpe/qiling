@@ -169,3 +169,31 @@ def hook_GetSystemDefaultUILanguage(ql: Qiling, address: int, params):
     # TODO find better documentation
     # https://docs.microsoft.com/it-it/windows/win32/intl/language-identifiers
     return ql.os.profile.getint("SYSTEM", "language")
+
+
+# int CompareStringA(
+#   LCID   Locale,
+#   DWORD  dwCmpFlags,
+#   PCNZCH lpString1,
+#   int    cchCount1,
+#   PCNZCH lpString2,
+#   int    cchCount2
+# );
+@winsdkapi(cc=STDCALL)
+def hook_CompareStringA(ql, address, params):
+    st1 = params["lpString1"]
+    st2 = params["lpString2"]
+    if st1 < st2:
+        return CSTR_LESS_THAN
+    elif st1 == st2:
+        return CSTR_EQUAL
+    else:
+        return CSTR_GREATER_THAN
+
+# BOOL IsValidLocale(
+#   LCID  Locale,
+#   DWORD dwFlags
+# );
+@winsdkapi(cc=STDCALL)
+def hook_CompareStringA(ql, address, params):
+    return 1

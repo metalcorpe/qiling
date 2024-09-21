@@ -32,10 +32,22 @@ class WindowsReport(Report):
     def __init__(self, ql):
         super().__init__(ql)
         self.dlls = ql.loader.dlls
-        self.teb_address = ql.loader.TEB.base
-        self.peb_address = ql.loader.PEB.base
-        self.ldr_address = ql.loader.LDR.base
-        self.api = ql.os.syscalls
+        try:
+            self.teb_address = ql.loader.TEB.base
+        except:
+            self.teb_address = None
+        try:
+            self.peb_address = ql.loader.PEB.base
+        except: 
+            self.peb_address = None
+        try:
+            self.ldr_address = ql.loader.LDR.base
+        except:
+            self.ldr_address = None
+        try:
+            self.api = ql.os.utils.syscalls
+        except Exception as e:
+            self.api = {}
         self.registries = {}
         for key, values in ql.os.registry_manager.accessed.items():
             self.registries[key] = values

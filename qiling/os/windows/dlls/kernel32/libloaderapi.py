@@ -4,6 +4,8 @@
 #
 
 import os
+import shutil
+import subprocess
 
 from qiling import Qiling
 from qiling.exception import QlErrorNotImplemented
@@ -26,8 +28,12 @@ def _GetModuleHandle(ql: Qiling, address: int, params):
         if lpModuleName in ql.loader.dlls:
             ret = ql.loader.dlls[lpModuleName]
         else:
-            ql.log.debug("Library %s not imported" % lpModuleName)
-            ret = 0
+            try:
+                ret = ql.loader.load_dll(lpModuleName.encode())
+                ql.log.debug("Library %s imported, Runtime Import" % lpModuleName)
+            except:
+                ql.log.debug("Library %s not imported" % lpModuleName)
+                ret = 0
 
     return ret
 
@@ -189,7 +195,22 @@ def _LoadLibrary(ql: Qiling, address: int, params):
 
 def _LoadLibraryEx(ql: Qiling, address: int, params):
     lpLibFileName = params["lpLibFileName"]
+    if 'System32\\' in lpLibFileName:
+        lpLibFileName = lpLibFileName.split('System32\\')[1]
 
+
+    # if 'x8664' in ql.rootfs:
+    #     process = subprocess.run(['find', '/mnt/ITDEPT021N/Windows/System32', '-iname', os.path.basename(lpLibFileName)], 
+    #                     stdout=subprocess.PIPE, 
+    #                     universal_newlines=True)
+    # else:
+    #     process = subprocess.run(['find', '/mnt/ITDEPT021N/Windows/SysWOW64', '-iname', os.path.basename(lpLibFileName)], 
+    #                     stdout=subprocess.PIPE, 
+    #                     universal_newlines=True)
+    # try:
+    #     shutil.copy(process.stdout.splitlines()[-1:][0], ql.rootfs+'/Windows/System32/' + os.path.basename(lpLibFileName))
+    # except:
+    #     pass
     return ql.loader.load_dll(lpLibFileName.encode())
 
 # HMODULE LoadLibraryA(
