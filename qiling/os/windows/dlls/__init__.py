@@ -10,6 +10,7 @@ from .msi import *
 from .ntdll import *
 from .ucrtbased import *
 from .wsock32 import *
+from .winsock import *
 from .ole32 import *
 from .shlwapi import *
 from .crypt32 import *
@@ -20,3 +21,4 @@ from .ntoskrnl import *
 from .wudplatform import *
 from .oleaut32 import *
 from .kernel32 import *
+from .gdi32 import *

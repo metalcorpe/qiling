@@ -25,7 +25,8 @@ dllname = 'cng_dll'
 # NTSYSAPI NTSTATUS RtlGetVersion(
 #   PRTL_OSVERSIONINFOW lpVersionInformation
 # );
-@winsdkapi(cc=CDECL, dllname=dllname, replace_params={"lpVersionInformation": POINTER})
+
+@winsdkapi(cc=CDECL)
 def hook_RtlGetVersion(ql, address, params):
     pointer = params["lpVersionInformation"]
     size = int.from_bytes(ql.mem.read(pointer, 4), byteorder="little")

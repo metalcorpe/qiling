@@ -777,3 +777,13 @@ def hook_EqualSid(ql: Qiling, address: int, params):
 
     # return sid1 == sid2
     return 0
+
+# BOOL EncryptFileA(
+#   LPCSTR lpFileName
+# );
+@winsdkapi(cc=STDCALL, params={
+    'lpFileName' : LPCSTR
+})
+def hook_EncryptFileA(ql: Qiling, address: int, params):
+    # TODO Implement it
+    return 1

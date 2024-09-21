@@ -24,6 +24,18 @@ def hook_VirtualAlloc(ql: Qiling, address: int, params):
     dwSize = params["dwSize"]
 
     return ql.os.heap.alloc(dwSize)
+# LPVOID VirtualAlloc(
+#   LPVOID lpAddress,
+#   SIZE_T dwSize,
+#   DWORD  flAllocationType,
+#   DWORD  flProtect
+# );
+@winsdkapi(cc=STDCALL)
+def hook_VirtualAllocEx(ql, address, params):
+    dwSize = params["dwSize"]
+    addr = ql.os.heap.alloc(dwSize)
+    return addr
+
 
 # BOOL VirtualFree(
 #   LPVOID lpAddress,

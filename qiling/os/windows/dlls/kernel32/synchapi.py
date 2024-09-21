@@ -285,7 +285,9 @@ def __CreateEvent(ql: Qiling, address: int, params):
     except ValueError:
         name = params["lpName"]
         namespace = ""
-
+    except AttributeError:
+        name = params["lpName"]
+        namespace = ""
     handle = ql.os.handle_manager.search(name)
 
     if handle is not None:
