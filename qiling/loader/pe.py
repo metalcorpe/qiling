@@ -78,7 +78,8 @@ class Process():
             path = os.path.join(self.ql.rootfs, self.ql.dlls, dll_name)
 
         if not os.path.exists(path):
-            raise QlErrorFileNotFound("Cannot find dll in %s" % path)
+            self.ql.log.error("Cannot find dll in %s" % path)
+            return 0
 
         # If the dll is already loaded
         if dll_name in self.dlls:
@@ -96,7 +97,7 @@ class Process():
             data = cached.data
 
             image_base = cached.ba
-            image_size = self.ql.mem.align(len(data), 0x1000)
+            image_size = self.ql.mem.align_up(len(data))
 
             # verify whether we can load the dll to the same address it was loaded when it was cached.
             # if not, the dll will have to be realoded in order to have its symbols relocated using the
@@ -126,7 +127,7 @@ class Process():
             data = bytearray(dll.get_memory_mapped_image())
 
             image_base = dll.OPTIONAL_HEADER.ImageBase or self.dll_last_address
-            image_size = self.ql.mem.align(len(data), 0x1000)
+            image_size = self.ql.mem.align_up(len(data))
 
             self.ql.log.debug(f'DLL preferred base address: {image_base:#x}')
 
@@ -257,9 +258,13 @@ class Process():
 
         # we must set an heap, will try to retrieve this value. Is ok to be all \x00
         process_heap = self.ql.os.heap.alloc(0x100)
-        peb_data = PEB(self.ql, base=peb_addr, process_heap=process_heap,
-                       number_processors=self.ql.os.profile.getint("HARDWARE",
-                                                                   "number_processors"))
+        process_parameters = self.ql.os.heap.alloc(0x100)
+        peb_data = PEB(
+            self.ql,
+            base=peb_addr,
+            process_heap=process_heap,
+            process_parameters=process_parameters,
+            number_processors=self.ql.os.profile.getint("HARDWARE", "number_processors"))
         peb_data.LdrAddress = peb_addr + peb_data.size
         peb_data.write(peb_addr)
         self.structure_last_addr += peb_data.size
@@ -514,7 +519,7 @@ class QlLoaderPE(QlLoader, Process):
         if self.path and not self.ql.code:
             # for simplicity, no image base relocation
             self.pe_image_address = self.pe.OPTIONAL_HEADER.ImageBase
-            self.pe_image_address_size = self.ql.mem.align(self.pe.OPTIONAL_HEADER.SizeOfImage, 0x1000)
+            self.pe_image_address_size = self.ql.mem.align_up(self.pe.OPTIONAL_HEADER.SizeOfImage)
 
             if self.pe_image_address + self.pe_image_address_size > self.ql.os.heap_base_address:
                 # pe reloc
@@ -599,23 +604,25 @@ class QlLoaderPE(QlLoader, Process):
                 self.ql.os.fcall.writeParams(((POINTER, self.ql.loader.driver_object_address), (POINTER, self.ql.loader.regitry_path_address)))
 
             # mmap PE file into memory
-            self.ql.mem.map(self.pe_image_address, self.align(self.pe_image_address_size, 0x1000), info="[PE]")
+            self.ql.mem.map(self.pe_image_address, self.ql.mem.align_up(self.pe_image_address_size), info="[PE]")
             self.pe.parse_data_directories()
             data = bytearray(self.pe.get_memory_mapped_image())
             self.ql.mem.write(self.pe_image_address, bytes(data))
-            # setup IMAGE_LOAD_CONFIG_DIRECTORY
-            if self.pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']].VirtualAddress != 0:
-                SecurityCookie_rva = self.pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SecurityCookie - self.pe.OPTIONAL_HEADER.ImageBase
-                SecurityCookie_value = default_security_cookie_value = self.ql.mem.read(self.pe_image_address+SecurityCookie_rva, self.ql.pointersize)
-                while SecurityCookie_value == default_security_cookie_value:
-                    SecurityCookie_value = secrets.token_bytes(self.ql.pointersize)
-                    # rol     rcx, 10h (rcx: cookie)
-                    # test    cx, 0FFFFh
-                    SecurityCookie_value_array = bytearray(SecurityCookie_value)
-                    # Sanity question: We are always little endian, right?
-                    SecurityCookie_value_array[-2:] = b'\x00\x00'
-                    SecurityCookie_value = bytes(SecurityCookie_value_array)
-                self.ql.mem.write(self.pe_image_address+SecurityCookie_rva, SecurityCookie_value)
+            
+            if self.is_driver:
+                # setup IMAGE_LOAD_CONFIG_DIRECTORY
+                if self.pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']].VirtualAddress != 0:
+                    SecurityCookie_rva = self.pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SecurityCookie - self.pe.OPTIONAL_HEADER.ImageBase
+                    SecurityCookie_value = default_security_cookie_value = self.ql.mem.read(self.pe_image_address+SecurityCookie_rva, self.ql.pointersize)
+                    while SecurityCookie_value == default_security_cookie_value:
+                        SecurityCookie_value = secrets.token_bytes(self.ql.pointersize)
+                        # rol     rcx, 10h (rcx: cookie)
+                        # test    cx, 0FFFFh
+                        SecurityCookie_value_array = bytearray(SecurityCookie_value)
+                        # Sanity question: We are always little endian, right?
+                        SecurityCookie_value_array[-2:] = b'\x00\x00'
+                        SecurityCookie_value = bytes(SecurityCookie_value_array)
+                    self.ql.mem.write(self.pe_image_address+SecurityCookie_rva, SecurityCookie_value)
 
             # Add main PE to ldr_data_table
             mod_name = os.path.basename(self.path)

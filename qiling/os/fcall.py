@@ -114,7 +114,7 @@ class QlFunctionCall:
 		if len(names) > len(types):
 			types.extend([None] * (len(names) - len(types)))
 
-		return zip(types, names, values)
+		return tuple(zip(types, names, values))
 
 	def call(self, func: CallHook, proto: Mapping[str, Any], params: Mapping[str, Any], hook_onenter: Optional[OnEnterHook], hook_onexit: Optional[OnExitHook], passthru: bool) -> Tuple[Iterable[TypedArg], int, int]:
 		"""Execute a hooked function.
@@ -173,3 +173,25 @@ class QlFunctionCall:
 		retaddr = -1 if passthru else self.cc.unwind(nslots)
 
 		return targs, retval, retaddr
+
+	def call_native(self, addr: int, args: Sequence[Tuple[Any, int]], ret: Optional[int]) -> None:
+		"""Call a native function after properly staging its arguments and return address.
+
+		Args:
+			addr: function entry point
+			args: a sequence of 2-tuples containing parameters types and values to pass to the function; may be empty
+			ret: return address; may be None
+		"""
+
+		# reserve slots for arguments
+		nslots = self.__count_slots(atype for atype, _ in args)
+		self.cc.reserve(nslots)
+
+		# set arguments values
+		self.writeParams(args)
+
+		if ret is not None:
+			self.cc.setReturnAddress(ret)
+
+		# call
+		self.ql.reg.arch_pc = addr

@@ -63,7 +63,7 @@ def ql_syscall_issetugid(ql: Qiling):
 
 
 def ql_syscall_getuid(ql: Qiling):
-    return 0
+    return ql.os.uid
 
 
 def ql_syscall_getuid32(ql: Qiling):
@@ -75,15 +75,15 @@ def ql_syscall_getgid32(ql: Qiling):
 
 
 def ql_syscall_geteuid(ql: Qiling):
-    return 0
+    return ql.os.euid
 
 
 def ql_syscall_getegid(ql: Qiling):
-    return 0
+    return ql.os.egid
 
 
 def ql_syscall_getgid(ql: Qiling):
-    return 0
+    return ql.os.gid
 
 
 def ql_syscall_setgroups(ql: Qiling, gidsetsize: int, grouplist: int):
@@ -142,11 +142,9 @@ def ql_syscall_lseek(ql: Qiling, fd: int, offset: int, lseek_origin: int):
         offset = ql.unpacks(ql.pack(offset))
 
         try:
-            regreturn = ql.os.fd[fd].lseek(offset, lseek_origin)
+            regreturn = ql.os.fd[fd].seek(offset, lseek_origin)
         except OSError:
             regreturn = -1
-        else:
-            regreturn = 0
     else:
         regreturn = -EBADF
 
@@ -161,7 +159,7 @@ def ql_syscall__llseek(ql: Qiling, fd: int, offset_high: int, offset_low: int, r
     origin = whence
 
     try:
-        ret = ql.os.fd[fd].lseek(offset, origin)
+        ret = ql.os.fd[fd].seek(offset, origin)
     except OSError:
         regreturn = -1
     else:
@@ -228,10 +226,10 @@ def ql_syscall_pread64(ql: Qiling, fd: int, buf: int, length: int, offt: int):
     if 0 <= fd < NR_OPEN and ql.os.fd[fd] != 0:
         try:
             pos = ql.os.fd[fd].tell()
-            ql.os.fd[fd].lseek(offt)
+            ql.os.fd[fd].seek(offt)
 
             data = ql.os.fd[fd].read(length)
-            ql.os.fd[fd].lseek(pos)
+            ql.os.fd[fd].seek(pos)
 
             ql.mem.write(buf, data)
             regreturn = len(data)
@@ -266,7 +264,7 @@ def ql_syscall_write(ql: Qiling, fd: int, buf: int, count: int):
     except:
         regreturn = -1
     else:
-        ql.log.debug(f'write() CONTENT: {data.decode()!r}')
+        ql.log.debug(f'write() CONTENT: {bytes(data)}')
 
         if hasattr(ql.os.fd[fd], 'write'):
             ql.os.fd[fd].write(data)
@@ -367,7 +365,7 @@ def ql_syscall_getppid(ql: Qiling):
 
 
 def ql_syscall_vfork(ql: Qiling):
-    if ql.platform == QL_OS.WINDOWS:
+    if ql.platform_os == QL_OS.WINDOWS:
         try:
             pid = Process()
             pid = 0
@@ -687,6 +685,13 @@ def __getdents_common(ql: Qiling, fd: int, dirp: int, count: int, *, is_64: bool
             d_type = _type_mapping(result)
             d_reclen = n + n + 2 + len(d_name) + 1
 
+            # TODO: Dirty fix for X8664 MACOS 11.6 APFS
+            # For some reason MACOS return int value is 64bit
+            try:
+                packed_d_ino = (ql.pack(d_ino), n)
+            except: 
+                packed_d_ino = (ql.pack64(d_ino), n)
+
             if is_64:
                 fields = (
                     (ql.pack(d_ino), n),
@@ -697,7 +702,7 @@ def __getdents_common(ql: Qiling, fd: int, dirp: int, count: int, *, is_64: bool
                 )
             else:
                 fields = (
-                    (ql.pack(d_ino), n),
+                    packed_d_ino,
                     (ql.pack(d_off), n),
                     (ql.pack16(d_reclen), 2),
                     (d_name, len(d_name)),
@@ -716,7 +721,7 @@ def __getdents_common(ql: Qiling, fd: int, dirp: int, count: int, *, is_64: bool
             _ent_count += 1
 
         regreturn = total_size
-        ql.os.fd[fd].lseek(0, os.SEEK_END) # mark as end of file for dir_fd
+        ql.os.fd[fd].seek(0, os.SEEK_END) # mark as end of file for dir_fd
     else:
         _ent_count = 0
         regreturn = 0

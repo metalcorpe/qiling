@@ -11,7 +11,7 @@ from unicorn import UcError
 from qiling import Qiling
 from qiling.const import QL_OS, QL_INTERCEPT, QL_OS_POSIX
 from qiling.os.const import STRING, WSTRING, GUID
-from qiling.os.fcall import QlFunctionCall
+from qiling.os.fcall import QlFunctionCall, TypedArg
 
 from .filestruct import ql_file
 from .mapper import QlFsMapper
@@ -35,7 +35,7 @@ class QlOs:
         self.child_processes = False
         self.thread_management = None
         self.profile = self.ql.profile
-        self.path = QlPathManager(ql, self.ql.profile.get("MISC", "current_path"))
+        self.path = None if self.ql.baremetal else QlPathManager(ql, self.ql.profile.get("MISC", "current_path"))
         self.exit_code = 0
 
         self.user_defined_api = {
@@ -81,10 +81,10 @@ class QlOs:
 
         self.ql.arch.utils.setup_output()
 
-    def save(self):
+    def save(self) -> Mapping[str, Any]:
         return {}
 
-    def restore(self, saved_state):
+    def restore(self, saved_state: Mapping[str, Any]):
         pass
 
     @property
@@ -123,6 +123,19 @@ class QlOs:
     def stderr(self, stream: TextIO) -> None:
         self._stderr = stream
 
+    @property
+    def root(self) -> bool:
+        """An indication whether the process is running as root.
+        """
+
+        # for this to work the os derivative should override this property
+        # and implement the os logic. in case it is not, return False
+        return False
+
+    @root.setter
+    def root(self, enabled: bool) -> None:
+        raise NotImplementedError('Running as root is not implemented for this OS')
+
     def resolve_fcall_params(self, params: Mapping[str, Any]) -> Mapping[str, Any]:
         """Transform function call raw parameters values into meaningful ones, according to
         their assigned type.
@@ -150,7 +163,7 @@ class QlOs:
 
         return resolved
 
-    def process_fcall_params(self, targs: Iterable[Tuple[Any, str, Any]]) -> Sequence[Tuple[str, str]]:
+    def process_fcall_params(self, targs: Iterable[TypedArg]) -> Sequence[Tuple[str, str]]:
         ahandlers: Mapping[type, Callable[[Any], str]] = {
             int       : lambda v: f'{v:#x}' if v else f'0',
             str       : lambda v: QlOsUtils.stringify(v),
@@ -199,7 +212,7 @@ class QlOs:
         else:
             self.add_function_hook(api_name, intercept_function, intercept)
 
-    def find_containing_image(self, pc):
+    def find_containing_image(self, pc: int):
         for image in self.ql.loader.images:
             if image.base <= pc < image.end:
                 return image
